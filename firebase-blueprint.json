@@ -1,0 +1,103 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Cloud-synced assistant profile and settings for CSI Voice Master AI.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Firebase Auth UID of the owner." },
+        "displayName": { "type": "string", "description": "User display name (e.g., S Irfan)." },
+        "wakeWord": { "type": "string", "description": "Primary custom wake word phrase." },
+        "assistantPersonality": { "type": "string", "description": "Assistant tone/personality preset.", "enum": ["professional", "friendly", "concise", "technical"] },
+        "preferredLanguage": { "type": "string", "description": "Preferred speech recognition/TTS language code.", "enum": ["en-US", "te-IN", "hi-IN", "auto"] },
+        "offlineModeOnly": { "type": "boolean", "description": "Whether the assistant stays strictly offline." },
+        "analyticsConsent": { "type": "boolean", "description": "User-consented telemetry opt-in flag." },
+        "cloudSyncEnabled": { "type": "boolean", "description": "Whether settings and routines sync to Firestore." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server timestamp on creation." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server timestamp on last update." }
+      },
+      "required": ["userId", "displayName", "wakeWord", "assistantPersonality", "preferredLanguage", "offlineModeOnly", "analyticsConsent", "cloudSyncEnabled", "createdAt", "updatedAt"]
+    },
+    "CustomRoutine": {
+      "title": "CustomRoutine",
+      "description": "User-defined custom voice routine triggered by a wake/command phrase.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner UID." },
+        "triggerPhrase": { "type": "string", "description": "Spoken phrase that triggers this routine." },
+        "actions": { "type": "array", "description": "Bounded list of action keys executed sequentially." },
+        "customReply": { "type": "string", "description": "Optional spoken summary template." },
+        "enabled": { "type": "boolean", "description": "Whether the routine is active." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server update timestamp." }
+      },
+      "required": ["userId", "triggerPhrase", "actions", "customReply", "enabled", "createdAt", "updatedAt"]
+    },
+    "AssistantNoteReminder": {
+      "title": "AssistantNoteReminder",
+      "description": "User-authored note or reminder created via voice or UI.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner UID." },
+        "kind": { "type": "string", "description": "Item category.", "enum": ["note", "reminder"] },
+        "title": { "type": "string", "description": "Short title." },
+        "content": { "type": "string", "description": "Detailed body text." },
+        "dueAtMillis": { "type": "integer", "description": "Optional epoch millis due time (0 if unset)." },
+        "completed": { "type": "boolean", "description": "Completion flag." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server update timestamp." }
+      },
+      "required": ["userId", "kind", "title", "content", "dueAtMillis", "completed", "createdAt", "updatedAt"]
+    },
+    "UsageMetric": {
+      "title": "UsageMetric",
+      "description": "Opt-in anonymized voice command latency and mode telemetry.",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string", "description": "Owner UID." },
+        "commandCategory": { "type": "string", "description": "Category such as calling, device, ai_chat, routine." },
+        "language": { "type": "string", "description": "Language code used." },
+        "offlineHandled": { "type": "boolean", "description": "True if executed locally without cloud AI." },
+        "latencyMs": { "type": "integer", "description": "Execution duration in milliseconds." },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Server creation timestamp." }
+      },
+      "required": ["userId", "commandCategory", "language", "offlineHandled", "latencyMs", "createdAt"]
+    },
+    "AppConfig": {
+      "title": "AppConfig",
+      "description": "Backend administration app version and status configuration.",
+      "type": "object",
+      "properties": {
+        "minSupportedVersion": { "type": "string", "description": "Minimum supported app version." },
+        "latestVersion": { "type": "string", "description": "Latest released app version." },
+        "maintenanceMode": { "type": "boolean", "description": "Global maintenance banner flag." },
+        "announcement": { "type": "string", "description": "Admin status announcement text." },
+        "updatedBy": { "type": "string", "description": "Admin UID or email." },
+        "updatedAt": { "type": "string", "format": "date-time", "description": "Server update timestamp." }
+      },
+      "required": ["minSupportedVersion", "latestVersion", "maintenanceMode", "announcement", "updatedBy", "updatedAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Per-user assistant profile and privacy preferences."
+    },
+    "/users/{userId}/custom_commands/{commandId}": {
+      "schema": { "$ref": "#/entities/CustomRoutine" },
+      "description": "Per-user custom voice routines."
+    },
+    "/users/{userId}/notes_reminders/{itemId}": {
+      "schema": { "$ref": "#/entities/AssistantNoteReminder" },
+      "description": "Per-user notes and reminders."
+    },
+    "/users/{userId}/telemetry_events/{eventId}": {
+      "schema": { "$ref": "#/entities/UsageMetric" },
+      "description": "Per-user opt-in usage telemetry events."
+    },
+    "/app_config/{configId}": {
+      "schema": { "$ref": "#/entities/AppConfig" },
+      "description": "Admin-managed app version and system status configuration."
+    }
+  }
+}

@@ -1,0 +1,15 @@
+<resources>
+    <string name="app_name">CSI</string>
+    <string name="welcome_irfan">Welcome S Irfan</string>
+    <string name="brand_subtitle">Voice Master AI</string>
+    <string name="notification_listener_label">CSI Notification Assistant</string>
+    <string name="device_admin_label">CSI Voice Lock</string>
+    <string name="device_admin_description">Allows CSI Voice Master AI to lock your screen only when you explicitly say lock commands.</string>
+    <string name="mic_service_channel_name">CSI Always-Ready Voice Service</string>
+    <string name="mic_service_channel_desc">Permanent notification shown whenever CSI microphone listening is active.</string>
+    <string name="sign_in_google">Sign in with Google</string>
+    <string name="sign_out">Sign out</string>
+    <string name="pause_listening">Pause Listening</string>
+    <string name="start_listening">Start Listening</string>
+    <string name="error_invalid_pin">Incorrect PIN. Please try again.</string>
+</resources>

@@ -1,0 +1,6 @@
+{
+  "name": "CSI",
+  "description": "Voice Master AI — Hands-free personal voice assistant with custom wake words, calling & messaging controls, phone actions, custom routines, offline mode, and Gemini AI.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

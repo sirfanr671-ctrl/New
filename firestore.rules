@@ -1,0 +1,178 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email == 'sirfanr671@gmail.com' && request.auth.token.email_verified == true)
+      );
+    }
+
+    function isValidUserProfile(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.displayName is string && data.displayName.size() >= 1 && data.displayName.size() <= 80 &&
+             data.wakeWord is string && data.wakeWord.size() >= 2 && data.wakeWord.size() <= 64 &&
+             data.assistantPersonality in ['professional', 'friendly', 'concise', 'technical'] &&
+             data.preferredLanguage in ['en-US', 'te-IN', 'hi-IN', 'auto'] &&
+             data.offlineModeOnly is bool &&
+             data.analyticsConsent is bool &&
+             data.cloudSyncEnabled is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidCustomRoutine(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.triggerPhrase is string && data.triggerPhrase.size() >= 2 && data.triggerPhrase.size() <= 100 &&
+             data.actions is list && data.actions.size() >= 1 && data.actions.size() <= 10 &&
+             data.actions[0] is string && data.actions[0].size() <= 64 &&
+             data.customReply is string && data.customReply.size() <= 300 &&
+             data.enabled is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidNoteReminder(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.kind in ['note', 'reminder'] &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 120 &&
+             data.content is string && data.content.size() <= 2000 &&
+             data.dueAtMillis is int && data.dueAtMillis >= 0 &&
+             data.completed is bool &&
+             data.createdAt is timestamp && data.createdAt <= request.time &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    function isValidUsageMetric(data) {
+      return data.userId is string && data.userId.size() >= 1 && data.userId.size() <= 128 &&
+             data.commandCategory is string && data.commandCategory.size() >= 1 && data.commandCategory.size() <= 50 &&
+             data.language is string && data.language.size() >= 2 && data.language.size() <= 20 &&
+             data.offlineHandled is bool &&
+             data.latencyMs is int && data.latencyMs >= 0 && data.latencyMs <= 600000 &&
+             data.createdAt is timestamp && data.createdAt <= request.time;
+    }
+
+    function isValidAppConfig(data) {
+      return data.minSupportedVersion is string && data.minSupportedVersion.size() >= 1 && data.minSupportedVersion.size() <= 32 &&
+             data.latestVersion is string && data.latestVersion.size() >= 1 && data.latestVersion.size() <= 32 &&
+             data.maintenanceMode is bool &&
+             data.announcement is string && data.announcement.size() <= 500 &&
+             data.updatedBy is string && data.updatedBy.size() >= 1 && data.updatedBy.size() <= 128 &&
+             data.updatedAt is timestamp && data.updatedAt <= request.time;
+    }
+
+    match /admins/{adminId} {
+      allow get: if isSignedIn() && request.auth.uid == adminId;
+      allow list, create, update, delete: if false;
+    }
+
+    match /app_config/{configId} {
+      allow get: if isSignedIn() && isValidId(configId);
+      allow list: if isAdmin();
+      allow create: if isAdmin() &&
+                       isValidId(configId) &&
+                       incoming().keys().hasAll(['minSupportedVersion', 'latestVersion', 'maintenanceMode', 'announcement', 'updatedBy', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['minSupportedVersion', 'latestVersion', 'maintenanceMode', 'announcement', 'updatedBy', 'updatedAt']) &&
+                       isValidAppConfig(incoming());
+      allow update: if isAdmin() &&
+                       isValidId(configId) &&
+                       isValidAppConfig(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['minSupportedVersion', 'latestVersion', 'maintenanceMode', 'announcement', 'updatedBy', 'updatedAt']);
+      allow delete: if isAdmin() && isValidId(configId);
+    }
+
+    match /users/{userId} {
+      allow get, list: if isSignedIn() && request.auth.uid == userId;
+      allow create: if isSignedIn() &&
+                       request.auth.uid == userId &&
+                       isValidId(userId) &&
+                       incoming().userId == request.auth.uid &&
+                       incoming().keys().hasAll(['userId', 'displayName', 'wakeWord', 'assistantPersonality', 'preferredLanguage', 'offlineModeOnly', 'analyticsConsent', 'cloudSyncEnabled', 'createdAt', 'updatedAt']) &&
+                       incoming().keys().hasOnly(['userId', 'displayName', 'wakeWord', 'assistantPersonality', 'preferredLanguage', 'offlineModeOnly', 'analyticsConsent', 'cloudSyncEnabled', 'createdAt', 'updatedAt']) &&
+                       isValidUserProfile(incoming());
+      allow update: if isSignedIn() &&
+                       request.auth.uid == userId &&
+                       isValidId(userId) &&
+                       incoming().userId == existing().userId &&
+                       incoming().createdAt == existing().createdAt &&
+                       isValidUserProfile(incoming()) &&
+                       incoming().diff(existing()).affectedKeys().hasOnly(['displayName', 'wakeWord', 'assistantPersonality', 'preferredLanguage', 'offlineModeOnly', 'analyticsConsent', 'cloudSyncEnabled', 'updatedAt']);
+      allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(userId);
+
+      match /custom_commands/{commandId} {
+        allow list: if isSignedIn() && request.auth.uid == userId;
+        allow get: if isSignedIn() && request.auth.uid == userId && isValidId(commandId);
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(commandId) &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().keys().hasAll(['userId', 'triggerPhrase', 'actions', 'customReply', 'enabled', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'triggerPhrase', 'actions', 'customReply', 'enabled', 'createdAt', 'updatedAt']) &&
+                         isValidCustomRoutine(incoming());
+        allow update: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(commandId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidCustomRoutine(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['triggerPhrase', 'actions', 'customReply', 'enabled', 'updatedAt']);
+        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(commandId);
+      }
+
+      match /notes_reminders/{itemId} {
+        allow list: if isSignedIn() && request.auth.uid == userId;
+        allow get: if isSignedIn() && request.auth.uid == userId && isValidId(itemId);
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(itemId) &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().keys().hasAll(['userId', 'kind', 'title', 'content', 'dueAtMillis', 'completed', 'createdAt', 'updatedAt']) &&
+                         incoming().keys().hasOnly(['userId', 'kind', 'title', 'content', 'dueAtMillis', 'completed', 'createdAt', 'updatedAt']) &&
+                         isValidNoteReminder(incoming());
+        allow update: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(itemId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         isValidNoteReminder(incoming()) &&
+                         incoming().diff(existing()).affectedKeys().hasOnly(['kind', 'title', 'content', 'dueAtMillis', 'completed', 'updatedAt']);
+        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(itemId);
+      }
+
+      match /telemetry_events/{eventId} {
+        allow list: if isSignedIn() && request.auth.uid == userId;
+        allow get: if isSignedIn() && request.auth.uid == userId && isValidId(eventId);
+        allow create: if isSignedIn() &&
+                         request.auth.uid == userId &&
+                         isValidId(eventId) &&
+                         incoming().userId == request.auth.uid &&
+                         incoming().keys().hasAll(['userId', 'commandCategory', 'language', 'offlineHandled', 'latencyMs', 'createdAt']) &&
+                         incoming().keys().hasOnly(['userId', 'commandCategory', 'language', 'offlineHandled', 'latencyMs', 'createdAt']) &&
+                         isValidUsageMetric(incoming());
+        allow update: if false;
+        allow delete: if isSignedIn() && request.auth.uid == userId && isValidId(eventId);
+      }
+    }
+  }
+}
